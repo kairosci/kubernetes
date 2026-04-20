@@ -40,6 +40,7 @@ import (
 	"k8s.io/kubernetes/pkg/proxy/nftables"
 	proxyutil "k8s.io/kubernetes/pkg/proxy/util"
 	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
+	"k8s.io/utils/ptr"
 )
 
 // platformApplyDefaults is called after parsing command-line flags and/or reading the
@@ -75,6 +76,11 @@ func (s *ProxyServer) platformSetup(ctx context.Context) error {
 // isIPTablesBased checks whether mode is based on iptables rather than nftables
 func isIPTablesBased(mode proxyconfigapi.ProxyMode) bool {
 	return mode == proxyconfigapi.ProxyModeIPTables || mode == proxyconfigapi.ProxyModeIPVS
+}
+
+// getBoolFlag is a helper to safely dereference a *bool pointer with a default value
+func getBoolFlag(b *bool, defaultValue bool) bool {
+	return ptr.Deref(b, defaultValue)
 }
 
 // platformCheckSupported is called immediately before creating the Proxier, to check
@@ -155,6 +161,7 @@ func (s *ProxyServer) createProxier(ctx context.Context, config *proxyconfigapi.
 				s.HealthzServer,
 				config.NodePortAddresses,
 				initOnly,
+				getBoolFlag(config.IPTables.SNATNodeInternalIP, false),
 			)
 		} else {
 			// Create a single-stack proxier if and only if the node does not support dual-stack (i.e, no iptables support).
@@ -177,6 +184,7 @@ func (s *ProxyServer) createProxier(ctx context.Context, config *proxyconfigapi.
 				s.HealthzServer,
 				config.NodePortAddresses,
 				initOnly,
+				getBoolFlag(config.IPTables.SNATNodeInternalIP, false),
 			)
 		}
 
