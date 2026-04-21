@@ -106,12 +106,13 @@ func NewDualStackProxier(
 	healthzServer *healthcheck.ProxyHealthServer,
 	nodePortAddresses []string,
 	initOnly bool,
+	snatNodeInternalIP bool,
 ) (proxy.Provider, error) {
 	// Create an ipv4 instance of the single-stack proxier
 	ipv4Proxier, err := NewProxier(ctx, v1.IPv4Protocol, ipts[v1.IPv4Protocol], sysctl,
 		syncPeriod, minSyncPeriod, masqueradeAll, localhostNodePorts, masqueradeBit,
 		localDetectors[v1.IPv4Protocol], nodeName, nodeIPs[v1.IPv4Protocol],
-		recorder, healthzServer, nodePortAddresses, initOnly)
+		recorder, healthzServer, nodePortAddresses, initOnly, snatNodeInternalIP)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create ipv4 proxier: %v", err)
 	}
@@ -119,7 +120,7 @@ func NewDualStackProxier(
 	ipv6Proxier, err := NewProxier(ctx, v1.IPv6Protocol, ipts[v1.IPv6Protocol], sysctl,
 		syncPeriod, minSyncPeriod, masqueradeAll, false, masqueradeBit,
 		localDetectors[v1.IPv6Protocol], nodeName, nodeIPs[v1.IPv6Protocol],
-		recorder, healthzServer, nodePortAddresses, initOnly)
+		recorder, healthzServer, nodePortAddresses, initOnly, snatNodeInternalIP)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create ipv6 proxier: %v", err)
 	}
@@ -193,6 +194,10 @@ type Proxier struct {
 	// via localhost.
 	localhostNodePorts bool
 
+	// snatNodeInternalIP indicates whether to SNAT service traffic using the node's
+	// InternalIP instead of the egress interface address.
+	snatNodeInternalIP bool
+
 	// conntrackTCPLiberal indicates whether the system sets the kernel nf_conntrack_tcp_be_liberal
 	conntrackTCPLiberal bool
 
@@ -228,6 +233,7 @@ func NewProxier(ctx context.Context,
 	healthzServer *healthcheck.ProxyHealthServer,
 	nodePortAddressStrings []string,
 	initOnly bool,
+	snatNodeInternalIP bool,
 ) (*Proxier, error) {
 	logger := klog.LoggerWithValues(klog.FromContext(ctx), "ipFamily", ipFamily)
 	nodePortAddresses := proxyutil.NewNodePortAddresses(ipFamily, nodePortAddressStrings)
@@ -262,6 +268,16 @@ func NewProxier(ctx context.Context,
 	masqueradeValue := 1 << uint(masqueradeBit)
 	masqueradeMark := fmt.Sprintf("%#08x", masqueradeValue)
 	logger.V(2).Info("Using iptables mark for masquerade", "mark", masqueradeMark)
+
+	if snatNodeInternalIP && nodeIP != nil && nodeIP.IsLoopback() {
+		logger.V(2).Info("snatNodeInternalIP enabled but nodeIP is a loopback address, falling back to MASQUERADE")
+		snatNodeInternalIP = false
+	} else if snatNodeInternalIP && nodeIP != nil && !nodeIP.IsLoopback() {
+		logger.V(2).Info("Using SNAT with node InternalIP for service traffic", "nodeIP", nodeIP.String())
+	} else if snatNodeInternalIP {
+		logger.V(2).Info("snatNodeInternalIP enabled but nodeIP is not available, using MASQUERADE")
+		snatNodeInternalIP = false
+	}
 
 	serviceHealthServer := healthcheck.NewServiceHealthServer(nodeName, recorder, nodePortAddresses, healthzServer, ipFamily)
 	nfacctRunner, err := nfacct.New()
@@ -298,6 +314,7 @@ func NewProxier(ctx context.Context,
 		nodePortAddresses:        nodePortAddresses,
 		networkInterfacer:        proxyutil.RealNetwork{},
 		conntrackTCPLiberal:      conntrackTCPLiberal,
+		snatNodeInternalIP:       snatNodeInternalIP,
 		logger:                   logger,
 		nfAcctCounters: map[string]bool{
 			metrics.IPTablesCTStateInvalidDroppedNFAcctCounter: false,
@@ -762,7 +779,12 @@ func (proxier *Proxier) syncProxyRules() (retryError error) {
 	masqRule := []string{
 		"-A", string(kubePostroutingChain),
 		"-m", "comment", "--comment", `"kubernetes service traffic requiring SNAT"`,
-		"-j", "MASQUERADE",
+	}
+	// Use SNAT with nodeIP if enabled and available, else fall back to MASQUERADE for backward compatibility.
+	if proxier.snatNodeInternalIP && proxier.nodeIP != nil && !proxier.nodeIP.IsLoopback() {
+		masqRule = append(masqRule, "-j", "SNAT", "--to-source", proxier.nodeIP.String())
+	} else {
+		masqRule = append(masqRule, "-j", "MASQUERADE")
 	}
 	if proxier.iptables.HasRandomFully() {
 		masqRule = append(masqRule, "--random-fully")
