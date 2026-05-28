@@ -42,6 +42,7 @@ type AdmissionReview struct {
 }
 
 // AdmissionRequest describes the admission.Attributes for the admission request.
+// +k8s:minProperties=1
 type AdmissionRequest struct {
 	// uid is an identifier for the individual request/response. It allows us to distinguish instances of requests which are
 	// otherwise identical (parallel requests, requests when earlier requests did not modify etc)
@@ -57,6 +58,7 @@ type AdmissionRequest struct {
 	Resource metav1.GroupVersionResource `json:"resource" protobuf:"bytes,3,opt,name=resource"`
 	// subResource is the subresource being requested, if any (for example, "status" or "scale")
 	// +optional
+	// +k8s:minLength=1
 	SubResource string `json:"subResource,omitempty" protobuf:"bytes,4,opt,name=subResource"`
 
 	// requestKind is the fully-qualified type of the original API request (for example, v1.Pod or autoscaling.v1.Scale).
@@ -87,14 +89,17 @@ type AdmissionRequest struct {
 	// If this is specified and differs from the value in "subResource", an equivalent match and conversion was performed.
 	// See documentation for the "matchPolicy" field in the webhook configuration type.
 	// +optional
+	// +k8s:minLength=1
 	RequestSubResource string `json:"requestSubResource,omitempty" protobuf:"bytes,15,opt,name=requestSubResource"`
 
 	// name is the name of the object as presented in the request.  On a CREATE operation, the client may omit name and
 	// rely on the server to generate the name.  If that is the case, this field will contain an empty string.
 	// +optional
+	// +k8s:minLength=1
 	Name string `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
 	// namespace is the namespace associated with the request (if any).
 	// +optional
+	// +k8s:minLength=1
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,6,opt,name=namespace"`
 	// operation is the operation being performed. This may be different than the operation
 	// requested. e.g. a patch can result in either a CREATE or UPDATE Operation.
@@ -123,6 +128,7 @@ type AdmissionRequest struct {
 }
 
 // AdmissionResponse describes an admission response.
+// +k8s:minProperties=1
 type AdmissionResponse struct {
 	// uid is an identifier for the individual request/response.
 	// This should be copied over from the corresponding AdmissionRequest.
@@ -140,6 +146,7 @@ type AdmissionResponse struct {
 
 	// patch is the patch body. Currently we only support "JSONPatch" which implements RFC 6902.
 	// +optional
+	// +k8s:minLength=1
 	Patch []byte `json:"patch,omitempty" protobuf:"bytes,4,opt,name=patch"`
 
 	// patchType is the type of Patch. Currently we only allow "JSONPatch".
@@ -151,6 +158,7 @@ type AdmissionResponse struct {
 	// admission webhook name (e.g. imagepolicy.example.com/error=image-blacklisted). AuditAnnotations will be provided by
 	// the admission webhook to add additional context to the audit log for this request.
 	// +optional
+	// +k8s:minProperties=0
 	AuditAnnotations map[string]string `json:"auditAnnotations,omitempty" protobuf:"bytes,6,opt,name=auditAnnotations"`
 
 	// warnings is a list of warning messages to return to the requesting API client.
@@ -159,10 +167,12 @@ type AdmissionResponse struct {
 	// Warnings over 256 characters and large numbers of warnings may be truncated.
 	// +optional
 	// +listType=atomic
+	// +k8s:items:minLength=1
 	Warnings []string `json:"warnings,omitempty" protobuf:"bytes,7,rep,name=warnings"`
 }
 
 // PatchType is the type of patch being used to represent the mutated object
+// +k8s:minLength=1
 type PatchType string
 
 // PatchType constants.
@@ -171,6 +181,7 @@ const (
 )
 
 // Operation is the type of resource operation being checked for admission control
+// +k8s:minLength=1
 type Operation string
 
 // Operation constants

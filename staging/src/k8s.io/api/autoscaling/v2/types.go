@@ -92,20 +92,25 @@ type HorizontalPodAutoscalerSpec struct {
 }
 
 // CrossVersionObjectReference contains enough information to let you identify the referred resource.
+// +k8s:minProperties=1
 type CrossVersionObjectReference struct {
 	// kind is the kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+	// +k8s:minLength=1
 	Kind string `json:"kind" protobuf:"bytes,1,opt,name=kind"`
 
 	// name is the name of the referent; More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+	// +k8s:minLength=1
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
 
 	// apiVersion is the API version of the referent
 	// +optional
+	// +k8s:minLength=1
 	APIVersion string `json:"apiVersion,omitempty" protobuf:"bytes,3,opt,name=apiVersion"`
 }
 
 // MetricSpec specifies how to scale based on a single metric
 // (only `type` and one other matching field should be set at once).
+// +k8s:minProperties=1
 type MetricSpec struct {
 	// type is the type of metric source.  It should be one of "ContainerResource", "External",
 	// "Object", "Pods" or "Resource", each mapping to a matching field in the object.
@@ -149,6 +154,7 @@ type MetricSpec struct {
 
 // HorizontalPodAutoscalerBehavior configures the scaling behavior of the target
 // in both Up and Down directions (scaleUp and scaleDown fields respectively).
+// +k8s:minProperties=1
 type HorizontalPodAutoscalerBehavior struct {
 	// scaleUp is scaling policy for scaling Up.
 	// If not set, the default value is the higher of:
@@ -167,6 +173,7 @@ type HorizontalPodAutoscalerBehavior struct {
 }
 
 // ScalingPolicySelect is used to specify which policy should be used while scaling in a certain direction
+// +k8s:minLength=1
 type ScalingPolicySelect string
 
 const (
@@ -190,6 +197,7 @@ const (
 // The tolerance is applied to the metric values and prevents scaling too
 // eagerly for small metric variations. (Note that setting a tolerance requires
 // the beta HPAConfigurableTolerance feature gate to be enabled.)
+// +k8s:minProperties=1
 type HPAScalingRules struct {
 	// stabilizationWindowSeconds is the number of seconds for which past recommendations should be
 	// considered while scaling up or scaling down.
@@ -231,6 +239,7 @@ type HPAScalingRules struct {
 }
 
 // HPAScalingPolicyType is the type of the policy which could be used while making scaling decisions.
+// +k8s:minLength=1
 type HPAScalingPolicyType string
 
 const (
@@ -242,6 +251,7 @@ const (
 )
 
 // HPAScalingPolicy is a single policy which must hold true for a specified past interval.
+// +k8s:minProperties=1
 type HPAScalingPolicy struct {
 	// type is used to specify the scaling policy.
 	Type HPAScalingPolicyType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=HPAScalingPolicyType"`
@@ -256,6 +266,7 @@ type HPAScalingPolicy struct {
 }
 
 // MetricSourceType indicates the type of metric.
+// +k8s:minLength=1
 type MetricSourceType string
 
 const (
@@ -288,6 +299,7 @@ const (
 
 // ObjectMetricSource indicates how to scale on a metric describing a
 // kubernetes object (for example, hits-per-second on an Ingress object).
+// +k8s:minProperties=1
 type ObjectMetricSource struct {
 	// describedObject specifies the descriptions of a object,such as kind,name apiVersion
 	DescribedObject CrossVersionObjectReference `json:"describedObject" protobuf:"bytes,1,name=describedObject"`
@@ -303,6 +315,7 @@ type ObjectMetricSource struct {
 // the current scale target (for example, transactions-processed-per-second).
 // The values will be averaged together before being compared to the target
 // value.
+// +k8s:minProperties=1
 type PodsMetricSource struct {
 	// metric identifies the target metric by name and selector
 	Metric MetricIdentifier `json:"metric" protobuf:"bytes,1,name=metric"`
@@ -318,6 +331,7 @@ type PodsMetricSource struct {
 // Kubernetes, and have special scaling options on top of those available to
 // normal per-pod metrics using the "pods" source.  Only one "target" type
 // should be set.
+// +k8s:minProperties=1
 type ResourceMetricSource struct {
 	// name is the name of the resource in question.
 	Name v1.ResourceName `json:"name" protobuf:"bytes,1,name=name"`
@@ -333,6 +347,7 @@ type ResourceMetricSource struct {
 // Kubernetes, and have special scaling options on top of those available to
 // normal per-pod metrics using the "pods" source.  Only one "target" type
 // should be set.
+// +k8s:minProperties=1
 type ContainerResourceMetricSource struct {
 	// name is the name of the resource in question.
 	Name v1.ResourceName `json:"name" protobuf:"bytes,1,name=name"`
@@ -341,12 +356,14 @@ type ContainerResourceMetricSource struct {
 	Target MetricTarget `json:"target" protobuf:"bytes,2,name=target"`
 
 	// container is the name of the container in the pods of the scaling target
+	// +k8s:minLength=1
 	Container string `json:"container" protobuf:"bytes,3,opt,name=container"`
 }
 
 // ExternalMetricSource indicates how to scale on a metric not associated with
 // any Kubernetes object (for example length of queue in cloud
 // messaging service, or QPS from loadbalancer running outside of cluster).
+// +k8s:minProperties=1
 type ExternalMetricSource struct {
 	// metric identifies the target metric by name and selector
 	Metric MetricIdentifier `json:"metric" protobuf:"bytes,1,name=metric"`
@@ -356,8 +373,10 @@ type ExternalMetricSource struct {
 }
 
 // MetricIdentifier defines the name and optionally selector for a metric
+// +k8s:minProperties=1
 type MetricIdentifier struct {
 	// name is the name of the given metric
+	// +k8s:minLength=1
 	Name string `json:"name" protobuf:"bytes,1,name=name"`
 
 	// selector is the string-encoded form of a standard kubernetes label selector for the given metric
@@ -368,6 +387,7 @@ type MetricIdentifier struct {
 }
 
 // MetricTarget defines the target value, average value, or average utilization of a specific metric
+// +k8s:minProperties=1
 type MetricTarget struct {
 	// type represents whether the metric type is Utilization, Value, or AverageValue
 	Type MetricTargetType `json:"type" protobuf:"bytes,1,name=type"`
@@ -391,6 +411,7 @@ type MetricTarget struct {
 
 // MetricTargetType specifies the type of metric being targeted, and should be either
 // "Value", "AverageValue", or "Utilization"
+// +k8s:minLength=1
 type MetricTargetType string
 
 const (
@@ -403,6 +424,7 @@ const (
 )
 
 // HorizontalPodAutoscalerStatus describes the current status of a horizontal pod autoscaler.
+// +k8s:minProperties=1
 type HorizontalPodAutoscalerStatus struct {
 	// observedGeneration is the most recent generation observed by this autoscaler.
 	// +optional
@@ -439,6 +461,7 @@ type HorizontalPodAutoscalerStatus struct {
 
 // HorizontalPodAutoscalerConditionType are the valid conditions of
 // a HorizontalPodAutoscaler.
+// +k8s:minLength=1
 type HorizontalPodAutoscalerConditionType string
 
 const (
@@ -457,6 +480,7 @@ const (
 
 // HorizontalPodAutoscalerCondition describes the state of
 // a HorizontalPodAutoscaler at a certain point.
+// +k8s:minProperties=1
 type HorizontalPodAutoscalerCondition struct {
 	// type describes the current condition
 	Type HorizontalPodAutoscalerConditionType `json:"type" protobuf:"bytes,1,name=type"`
@@ -471,15 +495,18 @@ type HorizontalPodAutoscalerCondition struct {
 
 	// reason is the reason for the condition's last transition.
 	// +optional
+	// +k8s:minLength=1
 	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 
 	// message is a human-readable explanation containing details about
 	// the transition
 	// +optional
+	// +k8s:minLength=1
 	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
 }
 
 // MetricStatus describes the last-read state of a single metric.
+// +k8s:minProperties=1
 type MetricStatus struct {
 	// type is the type of metric source.  It will be one of "ContainerResource", "External",
 	// "Object", "Pods" or "Resource", each corresponds to a matching field in the object.
@@ -523,6 +550,7 @@ type MetricStatus struct {
 
 // ObjectMetricStatus indicates the current value of a metric describing a
 // kubernetes object (for example, hits-per-second on an Ingress object).
+// +k8s:minProperties=1
 type ObjectMetricStatus struct {
 	// metric identifies the target metric by name and selector
 	Metric MetricIdentifier `json:"metric" protobuf:"bytes,1,name=metric"`
@@ -536,6 +564,7 @@ type ObjectMetricStatus struct {
 
 // PodsMetricStatus indicates the current value of a metric describing each pod in
 // the current scale target (for example, transactions-processed-per-second).
+// +k8s:minProperties=1
 type PodsMetricStatus struct {
 	// metric identifies the target metric by name and selector
 	Metric MetricIdentifier `json:"metric" protobuf:"bytes,1,name=metric"`
@@ -549,6 +578,7 @@ type PodsMetricStatus struct {
 // current scale target (e.g. CPU or memory).  Such metrics are built in to
 // Kubernetes, and have special scaling options on top of those available to
 // normal per-pod metrics using the "pods" source.
+// +k8s:minProperties=1
 type ResourceMetricStatus struct {
 	// name is the name of the resource in question.
 	Name v1.ResourceName `json:"name" protobuf:"bytes,1,name=name"`
@@ -562,6 +592,7 @@ type ResourceMetricStatus struct {
 // current scale target (e.g. CPU or memory).  Such metrics are built in to
 // Kubernetes, and have special scaling options on top of those available to
 // normal per-pod metrics using the "pods" source.
+// +k8s:minProperties=1
 type ContainerResourceMetricStatus struct {
 	// name is the name of the resource in question.
 	Name v1.ResourceName `json:"name" protobuf:"bytes,1,name=name"`
@@ -570,11 +601,13 @@ type ContainerResourceMetricStatus struct {
 	Current MetricValueStatus `json:"current" protobuf:"bytes,2,name=current"`
 
 	// container is the name of the container in the pods of the scaling target
+	// +k8s:minLength=1
 	Container string `json:"container" protobuf:"bytes,3,opt,name=container"`
 }
 
 // ExternalMetricStatus indicates the current value of a global metric
 // not associated with any Kubernetes object.
+// +k8s:minProperties=1
 type ExternalMetricStatus struct {
 	// metric identifies the target metric by name and selector
 	Metric MetricIdentifier `json:"metric" protobuf:"bytes,1,name=metric"`
@@ -584,6 +617,7 @@ type ExternalMetricStatus struct {
 }
 
 // MetricValueStatus holds the current value for a metric
+// +k8s:minProperties=1
 type MetricValueStatus struct {
 	// value is the current value of the metric (as a quantity).
 	// +optional

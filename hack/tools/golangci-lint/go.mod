@@ -223,3 +223,5 @@ require (
 	sigs.k8s.io/logtools v0.10.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace sigs.k8s.io/kube-api-linter => github.com/kairosci/kube-api-linter v0.0.0-20260528164133-b5755c251cc0

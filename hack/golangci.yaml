@@ -392,6 +392,7 @@ linters:
               - "conflictingmarkers" # Detect mutually exclusive markers on the same field.
               - "integers" # Ensure only int32 and int64 are used for integers.
               - "jsontags" # Ensure every field has a json tag.
+              - "minlength" # Ensure all strings and arrays have minimum lengths/minimum items. Supports kubebuilder and k8s declarative validation markers.
               # - "maxlength" # Ensure all strings and arrays have maximum lengths/maximum items. ONLY for CRDs until declarative markers exist in core types.
               # - "nobools" # Bools do not evolve over time, should use enums instead.
               # - "nofloats" # Ensure floats are not used.
