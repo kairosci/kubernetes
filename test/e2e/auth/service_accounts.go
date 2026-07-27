@@ -65,7 +65,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 			ginkgo.By("ensuring no secret-based service account token exists")
 			time.Sleep(10 * time.Second)
 			sa, err := f.ClientSet.CoreV1().ServiceAccounts(f.Namespace.Name).Get(ctx, "default", metav1.GetOptions{})
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ServiceAccounts.Get")
 			gomega.Expect(sa.Secrets).To(gomega.BeEmpty())
 		}
 	})
@@ -81,7 +81,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 	*/
 	framework.ConformanceIt("should mount an API token into pods", func(ctx context.Context) {
 		sa, err := f.ClientSet.CoreV1().ServiceAccounts(f.Namespace.Name).Create(ctx, &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "mount-test"}}, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ServiceAccounts.Create")
 
 		zero := int64(0)
 		pod, err := f.ClientSet.CoreV1().Pods(f.Namespace.Name).Create(ctx, &v1.Pod{
@@ -99,33 +99,33 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 				RestartPolicy:                 v1.RestartPolicyNever,
 			},
 		}, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
-		framework.ExpectNoError(e2epod.WaitForPodRunningInNamespace(ctx, f.ClientSet, pod))
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.Pods.Create")
+		framework.ExpectNoError(e2epod.WaitForPodRunningInNamespace(ctx, f.ClientSet, pod), "failed to e2epod.WaitForPodRunningInNamespace")
 
 		// Read the running pod to get the current node name
 		pod, err = f.ClientSet.CoreV1().Pods(f.Namespace.Name).Get(ctx, pod.Name, metav1.GetOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.Pods.Get")
 		node, err := f.ClientSet.CoreV1().Nodes().Get(ctx, pod.Spec.NodeName, metav1.GetOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.Nodes.Get")
 
 		tk := e2ekubectl.NewTestKubeconfig(framework.TestContext.CertDir, framework.TestContext.Host, framework.TestContext.KubeConfig, framework.TestContext.KubeContext, framework.TestContext.KubectlPath, f.Namespace.Name)
 		mountedToken, err := tk.ReadFileViaContainer(pod.Name, pod.Spec.Containers[0].Name, path.Join(serviceaccount.DefaultAPITokenMountPath, v1.ServiceAccountTokenKey))
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to tk.ReadFileViaContainer")
 		mountedCA, err := tk.ReadFileViaContainer(pod.Name, pod.Spec.Containers[0].Name, path.Join(serviceaccount.DefaultAPITokenMountPath, v1.ServiceAccountRootCAKey))
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to tk.ReadFileViaContainer")
 		mountedNamespace, err := tk.ReadFileViaContainer(pod.Name, pod.Spec.Containers[0].Name, path.Join(serviceaccount.DefaultAPITokenMountPath, v1.ServiceAccountNamespaceKey))
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to tk.ReadFileViaContainer")
 
 		// CA and namespace should be identical
 		rootCA, err := f.ClientSet.CoreV1().ConfigMaps(f.Namespace.Name).Get(ctx, rootCAConfigMapName, metav1.GetOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ConfigMaps.Get")
 		framework.Logf("Got root ca configmap in namespace %q", f.Namespace.Name)
 		gomega.Expect(mountedCA).To(gomega.Equal(rootCA.Data["ca.crt"]))
 		gomega.Expect(mountedNamespace).To(gomega.Equal(f.Namespace.Name))
 		// Token should be a valid credential that identifies the pod's service account
 		tokenReview := &authenticationv1.TokenReview{Spec: authenticationv1.TokenReviewSpec{Token: mountedToken}}
 		tokenReview, err = f.ClientSet.AuthenticationV1().TokenReviews().Create(ctx, tokenReview, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.ClientSet.AuthenticationV1.TokenReviews.Create")
 		if !tokenReview.Status.Authenticated {
 			framework.Fail("tokenReview is not authenticated")
 		}
@@ -199,9 +199,9 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 		mountSA := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "mount"}, AutomountServiceAccountToken: &trueValue}
 		nomountSA := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "nomount"}, AutomountServiceAccountToken: &falseValue}
 		mountSA, err = f.ClientSet.CoreV1().ServiceAccounts(f.Namespace.Name).Create(ctx, mountSA, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ServiceAccounts.Create")
 		nomountSA, err = f.ClientSet.CoreV1().ServiceAccounts(f.Namespace.Name).Create(ctx, nomountSA, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ServiceAccounts.Create")
 
 		testcases := []struct {
 			PodName            string
@@ -280,7 +280,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 				},
 			}
 			createdPod, err := f.ClientSet.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.Pods.Create")
 			framework.Logf("created pod %s", tc.PodName)
 
 			hasServiceAccountTokenVolume := false
@@ -635,10 +635,10 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 			},
 		}
 		pod, err := f.ClientSet.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.Pods.Create")
 
 		framework.Logf("created pod")
-		framework.ExpectNoError(e2epod.WaitTimeoutForPodReadyInNamespace(ctx, f.ClientSet, pod.Name, f.Namespace.Name, time.Minute))
+		framework.ExpectNoError(e2epod.WaitTimeoutForPodReadyInNamespace(ctx, f.ClientSet, pod.Name, f.Namespace.Name, time.Minute), "failed to e2epod.WaitTimeoutForPodReadyInNamespace")
 
 		framework.Logf("pod is ready")
 
@@ -708,7 +708,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 				framework.ExpectNoError(
 					f.ClientSet.RbacV1().ClusterRoleBindings().Delete(
 						ctx,
-						crb.Name, metav1.DeleteOptions{}))
+						crb.Name, metav1.DeleteOptions{}), "failed to f.ClientSet.RbacV1().ClusterRoleBindings().Create(")
 			}()
 		}
 
@@ -756,7 +756,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 			},
 		}
 		pod, err := f.ClientSet.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.Pods.Create")
 
 		framework.Logf("created pod")
 		podErr := e2epod.WaitForPodSuccessInNamespace(ctx, f.ClientSet, pod.Name, f.Namespace.Name)
@@ -777,7 +777,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 			framework.Logf("Pod logs: \n%v", logs)
 		}
 
-		framework.ExpectNoError(podErr)
+		framework.ExpectNoError(podErr, "failed to podErr")
 		framework.Logf("completed pod")
 	})
 
@@ -803,11 +803,11 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 			},
 		}
 		createdServiceAccount, err := f.ClientSet.CoreV1().ServiceAccounts(testNamespaceName).Create(ctx, &testServiceAccount, metav1.CreateOptions{})
-		framework.ExpectNoError(err, "failed to create a ServiceAccount")
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ServiceAccounts.Create")
 		gomega.Expect(createdServiceAccount).To(apimachineryutils.HaveValidResourceVersion())
 
 		getServiceAccount, err := f.ClientSet.CoreV1().ServiceAccounts(testNamespaceName).Get(ctx, testServiceAccountName, metav1.GetOptions{})
-		framework.ExpectNoError(err, "failed to fetch the created ServiceAccount")
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ServiceAccounts.Get")
 		gomega.Expect(createdServiceAccount.UID).To(gomega.Equal(getServiceAccount.UID))
 
 		ginkgo.By("watching for the ServiceAccount to be added")
@@ -834,9 +834,9 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 		testServiceAccountPatchData, err := json.Marshal(v1.ServiceAccount{
 			AutomountServiceAccountToken: &boolFalse,
 		})
-		framework.ExpectNoError(err, "failed to marshal JSON patch for the ServiceAccount")
+		framework.ExpectNoError(err, "failed to json.Marshal")
 		patchedServiceAccount, err := f.ClientSet.CoreV1().ServiceAccounts(testNamespaceName).Patch(ctx, testServiceAccountName, types.StrategicMergePatchType, []byte(testServiceAccountPatchData), metav1.PatchOptions{})
-		framework.ExpectNoError(err, "failed to patch the ServiceAccount")
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ServiceAccounts.Patch")
 		gomega.Expect(resourceversion.CompareResourceVersion(createdServiceAccount.ResourceVersion, patchedServiceAccount.ResourceVersion)).To(gomega.BeNumerically("==", -1), "patched object should have a larger resource version")
 
 		eventFound = false
@@ -851,7 +851,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 		}
 		ginkgo.By("finding ServiceAccount in list of all ServiceAccounts (by LabelSelector)")
 		serviceAccountList, err := f.ClientSet.CoreV1().ServiceAccounts("").List(ctx, metav1.ListOptions{LabelSelector: testServiceAccountStaticLabelsFlat})
-		framework.ExpectNoError(err, "failed to list ServiceAccounts by LabelSelector")
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ServiceAccounts.List")
 		foundServiceAccount := false
 		for _, serviceAccountItem := range serviceAccountList.Items {
 			if serviceAccountItem.ObjectMeta.Name == testServiceAccountName && serviceAccountItem.ObjectMeta.Namespace == testNamespaceName && *serviceAccountItem.AutomountServiceAccountToken == boolFalse {
@@ -864,7 +864,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 		}
 		ginkgo.By("deleting the ServiceAccount")
 		err = f.ClientSet.CoreV1().ServiceAccounts(testNamespaceName).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
-		framework.ExpectNoError(err, "failed to delete the ServiceAccount by Collection")
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ServiceAccounts.DeleteCollection")
 		eventFound = false
 		for watchEvent := range resourceWatchChan {
 			if watchEvent.Type == watch.Deleted {
@@ -896,10 +896,10 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 				return false, nil
 			}
 			return false, err
-		}))
+		}), "failed to f.ClientSet.CoreV1().ConfigMaps(f.Namespace.Name).Get(ctx...")
 		framework.Logf("Got root ca configmap in namespace %q", f.Namespace.Name)
 
-		framework.ExpectNoError(f.ClientSet.CoreV1().ConfigMaps(f.Namespace.Name).Delete(ctx, rootCAConfigMapName, metav1.DeleteOptions{GracePeriodSeconds: ptr.To[int64](0)}))
+		framework.ExpectNoError(f.ClientSet.CoreV1().ConfigMaps(f.Namespace.Name).Delete(ctx, rootCAConfigMapName, metav1.DeleteOptions{GracePeriodSeconds: ptr.To[int64](0)}), "failed to f.ClientSet.CoreV1.ConfigMaps.Delete")
 		framework.Logf("Deleted root ca configmap in namespace %q", f.Namespace.Name)
 
 		framework.ExpectNoError(wait.Poll(500*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
@@ -913,7 +913,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 				return false, nil
 			}
 			return false, err
-		}))
+		}), "failed to f.ClientSet.CoreV1().ConfigMaps(f.Namespace.Name).Get(ctx...")
 		framework.Logf("Recreated root ca configmap in namespace %q", f.Namespace.Name)
 
 		_, err := f.ClientSet.CoreV1().ConfigMaps(f.Namespace.Name).Update(ctx, &v1.ConfigMap{
@@ -924,7 +924,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 				"ca.crt": "",
 			},
 		}, metav1.UpdateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.ClientSet.CoreV1.ConfigMaps.Update")
 		framework.Logf("Updated root ca configmap in namespace %q", f.Namespace.Name)
 
 		framework.ExpectNoError(wait.Poll(500*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
@@ -942,7 +942,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 				return false, nil
 			}
 			return true, nil
-		}))
+		}), "failed to f.ClientSet.CoreV1().ConfigMaps(f.Namespace.Name).Get(ctx...")
 		framework.Logf("Reconciled root ca configmap in namespace %q", f.Namespace.Name)
 	})
 
@@ -966,7 +966,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 
 		ginkgo.By(fmt.Sprintf("Creating ServiceAccount %q ", saName))
 		createdServiceAccount, err := saClient.Create(ctx, initialServiceAccount, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to saClient.Create")
 		gomega.Expect(createdServiceAccount.AutomountServiceAccountToken).To(gomega.Equal(ptr.To(false)), "Failed to set AutomountServiceAccountToken")
 		framework.Logf("AutomountServiceAccountToken: %v", *createdServiceAccount.AutomountServiceAccountToken)
 
@@ -1014,7 +1014,7 @@ var _ = SIGDescribe("ServiceAccounts", func() {
 		ginkgo.By(fmt.Sprintf("Creating a TokenReview for %q in namespace %q", response.Name, ns))
 		tokenReview := &authenticationv1.TokenReview{Spec: authenticationv1.TokenReviewSpec{Token: response.Status.Token}}
 		tokenReview, err = f.ClientSet.AuthenticationV1().TokenReviews().Create(ctx, tokenReview, metav1.CreateOptions{})
-		framework.ExpectNoError(err, "failed to create a TokenReview")
+		framework.ExpectNoError(err, "failed to f.ClientSet.AuthenticationV1.TokenReviews.Create")
 		gomega.Expect(tokenReview.Status.Authenticated).To(gomega.BeTrueBecause("expect that the TokenReview is authenticated"))
 		gomega.Expect(tokenReview.Status.Error).To(gomega.BeEmpty(), "confirm that there are no TokenReview errors")
 	})

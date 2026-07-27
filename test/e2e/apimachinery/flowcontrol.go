@@ -152,7 +152,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		ginkgo.By("getting request concurrency from metrics")
 		for i := range clients {
 			realConcurrency, err := getPriorityLevelNominalConcurrency(ctx, f.ClientSet, clients[i].priorityLevelName)
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to getPriorityLevelNominalConcurrency")
 			clients[i].concurrency = int32(float64(realConcurrency) * clients[i].concurrencyMultiplier)
 			if clients[i].concurrency < 1 {
 				clients[i].concurrency = 1
@@ -223,7 +223,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 
 		framework.Logf("getting real concurrency")
 		realConcurrency, err := getPriorityLevelNominalConcurrency(ctx, f.ClientSet, priorityLevelName)
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to getPriorityLevelNominalConcurrency")
 		for i := range clients {
 			clients[i].concurrency = int32(float64(realConcurrency) * clients[i].concurrencyMultiplier)
 			if clients[i].concurrency < 1 {
@@ -274,7 +274,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		ginkgo.By("getting /apis")
 		{
 			discoveryGroups, err := f.ClientSet.Discovery().ServerGroups()
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to f.ClientSet.Discovery.ServerGroups")
 			found := false
 			for _, group := range discoveryGroups.Groups {
 				if group.Name == flowcontrol.GroupName {
@@ -295,7 +295,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		{
 			group := &metav1.APIGroup{}
 			err := f.ClientSet.Discovery().RESTClient().Get().AbsPath("/apis/flowcontrol.apiserver.k8s.io").Do(ctx).Into(group)
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to f.ClientSet.Discovery.RESTClient.Get.AbsPath.Do.Into")
 			found := false
 			for _, version := range group.Versions {
 				if version.Version == fsVersion {
@@ -311,7 +311,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		ginkgo.By("getting /apis/flowcontrol.apiserver.k8s.io/" + fsVersion)
 		{
 			resources, err := f.ClientSet.Discovery().ServerResourcesForGroupVersion(flowcontrol.SchemeGroupVersion.String())
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to f.ClientSet.Discovery.ServerResourcesForGroupVersion")
 			foundFS, foundFSStatus := false, false
 			for _, resource := range resources.APIResources {
 				switch resource.Name {
@@ -371,37 +371,37 @@ var _ = SIGDescribe("API priority and fairness", func() {
 
 		ginkgo.DeferCleanup(func(ctx context.Context) {
 			err := client.DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: label})
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to client.DeleteCollection")
 		})
 
 		ginkgo.By("creating")
 		_, err := client.Create(ctx, template, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Create")
 		_, err = client.Create(ctx, template, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Create")
 		fsCreated, err := client.Create(ctx, template, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Create")
 
 		ginkgo.By("getting")
 		fsRead, err := client.Get(ctx, fsCreated.Name, metav1.GetOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Get")
 		gomega.Expect(fsRead.UID).To(gomega.Equal(fsCreated.UID))
 		gomega.Expect(fsRead).To(apimachineryutils.HaveValidResourceVersion())
 
 		ginkgo.By("listing")
 		list, err := client.List(ctx, metav1.ListOptions{LabelSelector: label})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.List")
 		gomega.Expect(list.Items).To(gomega.HaveLen(3), "filtered list should have 3 items")
 
 		ginkgo.By("watching")
 		framework.Logf("starting watch")
 		fsWatch, err := client.Watch(ctx, metav1.ListOptions{ResourceVersion: list.ResourceVersion, LabelSelector: label})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Watch")
 
 		ginkgo.By("patching")
 		patchBytes := []byte(`{"metadata":{"annotations":{"patched":"true"}},"spec":{"matchingPrecedence":9999}}`)
 		fsPatched, err := client.Patch(ctx, fsCreated.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Patch")
 		gomega.Expect(fsPatched.Annotations).To(gomega.HaveKeyWithValue("patched", "true"), "patched object should have the applied annotation")
 		gomega.Expect(fsPatched.Spec.MatchingPrecedence).To(gomega.Equal(int32(9999)), "patched object should have the applied spec")
 		gomega.Expect(resourceversion.CompareResourceVersion(fsCreated.ResourceVersion, fsPatched.ResourceVersion)).To(gomega.BeNumerically("==", -1), "patched object should have a larger resource version")
@@ -410,7 +410,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		var fsUpdated *flowcontrol.FlowSchema
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			fs, err := client.Get(ctx, fsCreated.Name, metav1.GetOptions{})
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to client.Get")
 
 			fsToUpdate := fs.DeepCopy()
 			fsToUpdate.Annotations["updated"] = "true"
@@ -419,7 +419,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 			fsUpdated, err = client.Update(ctx, fsToUpdate, metav1.UpdateOptions{})
 			return err
 		})
-		framework.ExpectNoError(err, "failed to update flowschema %q", fsCreated.Name)
+		framework.ExpectNoError(err, "failed to client.Update", fsCreated.Name)
 		gomega.Expect(fsUpdated.Annotations).To(gomega.HaveKeyWithValue("updated", "true"), "updated object should have the applied annotation")
 		gomega.Expect(fsUpdated.Spec.MatchingPrecedence).To(gomega.Equal(int32(9000)), "updated object should have the applied spec")
 
@@ -449,14 +449,14 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		ginkgo.By("getting /status")
 		resource := flowcontrol.SchemeGroupVersion.WithResource("flowschemas")
 		fsStatusRead, err := f.DynamicClient.Resource(resource).Get(ctx, fsCreated.Name, metav1.GetOptions{}, "status")
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.DynamicClient.Resource.Get")
 		gomega.Expect(fsStatusRead.GetObjectKind().GroupVersionKind()).To(gomega.Equal(flowcontrol.SchemeGroupVersion.WithKind("FlowSchema")))
 		gomega.Expect(fsStatusRead.GetUID()).To(gomega.Equal(fsCreated.UID))
 
 		ginkgo.By("patching /status")
 		patchBytes = []byte(`{"status":{"conditions":[{"type":"PatchStatusFailed","status":"False","reason":"e2e"}]}}`)
 		fsStatusPatched, err := client.Patch(ctx, fsCreated.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Patch")
 		condition := apihelpers.GetFlowSchemaConditionByType(fsStatusPatched, flowcontrol.FlowSchemaConditionType("PatchStatusFailed"))
 		gomega.Expect(condition).NotTo(gomega.BeNil())
 
@@ -464,7 +464,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		var fsStatusUpdated *flowcontrol.FlowSchema
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			fs, err := client.Get(ctx, fsCreated.Name, metav1.GetOptions{})
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to client.Get")
 
 			fsStatusToUpdate := fs.DeepCopy()
 			fsStatusToUpdate.Status.Conditions = append(fsStatusToUpdate.Status.Conditions, flowcontrol.FlowSchemaCondition{
@@ -476,28 +476,28 @@ var _ = SIGDescribe("API priority and fairness", func() {
 			fsStatusUpdated, err = client.UpdateStatus(ctx, fsStatusToUpdate, metav1.UpdateOptions{})
 			return err
 		})
-		framework.ExpectNoError(err, "failed to update status of flowschema %q", fsCreated.Name)
+		framework.ExpectNoError(err, "failed to client.UpdateStatus", fsCreated.Name)
 		condition = apihelpers.GetFlowSchemaConditionByType(fsStatusUpdated, flowcontrol.FlowSchemaConditionType("StatusUpdateFailed"))
 		gomega.Expect(condition).NotTo(gomega.BeNil())
 
 		ginkgo.By("deleting")
 		err = client.Delete(ctx, fsCreated.Name, metav1.DeleteOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Delete")
 		_, err = client.Get(ctx, fsCreated.Name, metav1.GetOptions{})
 		if !apierrors.IsNotFound(err) {
 			framework.Failf("expected 404, got %#v", err)
 		}
 
 		list, err = client.List(ctx, metav1.ListOptions{LabelSelector: label})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.List")
 		gomega.Expect(list.Items).To(gomega.HaveLen(2), "filtered list should have 2 items")
 
 		ginkgo.By("deleting a collection")
 		err = client.DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: label})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.DeleteCollection")
 
 		list, err = client.List(ctx, metav1.ListOptions{LabelSelector: label})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.List")
 		gomega.Expect(list.Items).To(gomega.BeEmpty(), "filtered list should have 0 items")
 	})
 
@@ -520,7 +520,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		ginkgo.By("getting /apis")
 		{
 			discoveryGroups, err := f.ClientSet.Discovery().ServerGroups()
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to f.ClientSet.Discovery.ServerGroups")
 			found := false
 			for _, group := range discoveryGroups.Groups {
 				if group.Name == flowcontrol.GroupName {
@@ -541,7 +541,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		{
 			group := &metav1.APIGroup{}
 			err := f.ClientSet.Discovery().RESTClient().Get().AbsPath("/apis/flowcontrol.apiserver.k8s.io").Do(ctx).Into(group)
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to f.ClientSet.Discovery.RESTClient.Get.AbsPath.Do.Into")
 			found := false
 			for _, version := range group.Versions {
 				if version.Version == plVersion {
@@ -557,7 +557,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		ginkgo.By("getting /apis/flowcontrol.apiserver.k8s.io/" + plVersion)
 		{
 			resources, err := f.ClientSet.Discovery().ServerResourcesForGroupVersion(flowcontrol.SchemeGroupVersion.String())
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to f.ClientSet.Discovery.ServerResourcesForGroupVersion")
 			foundPL, foundPLStatus := false, false
 			for _, resource := range resources.APIResources {
 				switch resource.Name {
@@ -599,37 +599,37 @@ var _ = SIGDescribe("API priority and fairness", func() {
 
 		ginkgo.DeferCleanup(func(ctx context.Context) {
 			err := client.DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: label})
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to client.DeleteCollection")
 		})
 
 		ginkgo.By("creating")
 		_, err := client.Create(ctx, template, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Create")
 		_, err = client.Create(ctx, template, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Create")
 		plCreated, err := client.Create(ctx, template, metav1.CreateOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Create")
 
 		ginkgo.By("getting")
 		plRead, err := client.Get(ctx, plCreated.Name, metav1.GetOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Get")
 		gomega.Expect(plRead.UID).To(gomega.Equal(plCreated.UID))
 		gomega.Expect(plRead).To(apimachineryutils.HaveValidResourceVersion())
 
 		ginkgo.By("listing")
 		list, err := client.List(ctx, metav1.ListOptions{LabelSelector: label})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.List")
 		gomega.Expect(list.Items).To(gomega.HaveLen(3), "filtered list should have 3 items")
 
 		ginkgo.By("watching")
 		framework.Logf("starting watch")
 		plWatch, err := client.Watch(ctx, metav1.ListOptions{ResourceVersion: list.ResourceVersion, LabelSelector: label})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Watch")
 
 		ginkgo.By("patching")
 		patchBytes := []byte(`{"metadata":{"annotations":{"patched":"true"}},"spec":{"limited":{"nominalConcurrencyShares":4}}}`)
 		plPatched, err := client.Patch(ctx, plCreated.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Patch")
 		gomega.Expect(plPatched.Annotations).To(gomega.HaveKeyWithValue("patched", "true"), "patched object should have the applied annotation")
 		gomega.Expect(plPatched.Spec.Limited.NominalConcurrencyShares).To(gomega.Equal(ptr.To(int32(4))), "patched object should have the applied spec")
 		gomega.Expect(resourceversion.CompareResourceVersion(plCreated.ResourceVersion, plPatched.ResourceVersion)).To(gomega.BeNumerically("==", -1), "patched object should have a larger resource version")
@@ -638,7 +638,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		var plUpdated *flowcontrol.PriorityLevelConfiguration
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			pl, err := client.Get(ctx, plCreated.Name, metav1.GetOptions{})
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to client.Get")
 
 			plToUpdate := pl.DeepCopy()
 			plToUpdate.Annotations["updated"] = "true"
@@ -647,7 +647,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 			plUpdated, err = client.Update(ctx, plToUpdate, metav1.UpdateOptions{})
 			return err
 		})
-		framework.ExpectNoError(err, "failed to update prioritylevelconfiguration %q", plCreated.Name)
+		framework.ExpectNoError(err, "failed to client.Update", plCreated.Name)
 		gomega.Expect(plUpdated.Annotations).To(gomega.HaveKeyWithValue("updated", "true"), "updated object should have the applied annotation")
 		gomega.Expect(plUpdated.Spec.Limited.NominalConcurrencyShares).To(gomega.Equal(ptr.To(int32(6))), "updated object should have the applied spec")
 
@@ -677,14 +677,14 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		ginkgo.By("getting /status")
 		resource := flowcontrol.SchemeGroupVersion.WithResource("prioritylevelconfigurations")
 		plStatusRead, err := f.DynamicClient.Resource(resource).Get(ctx, plCreated.Name, metav1.GetOptions{}, "status")
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to f.DynamicClient.Resource.Get")
 		gomega.Expect(plStatusRead.GetObjectKind().GroupVersionKind()).To(gomega.Equal(flowcontrol.SchemeGroupVersion.WithKind("PriorityLevelConfiguration")))
 		gomega.Expect(plStatusRead.GetUID()).To(gomega.Equal(plCreated.UID))
 
 		ginkgo.By("patching /status")
 		patchBytes = []byte(`{"status":{"conditions":[{"type":"PatchStatusFailed","status":"False","reason":"e2e"}]}}`)
 		plStatusPatched, err := client.Patch(ctx, plCreated.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Patch")
 		condition := apihelpers.GetPriorityLevelConfigurationConditionByType(plStatusPatched, flowcontrol.PriorityLevelConfigurationConditionType("PatchStatusFailed"))
 		gomega.Expect(condition).NotTo(gomega.BeNil())
 
@@ -692,7 +692,7 @@ var _ = SIGDescribe("API priority and fairness", func() {
 		var plStatusUpdated *flowcontrol.PriorityLevelConfiguration
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			pl, err := client.Get(ctx, plCreated.Name, metav1.GetOptions{})
-			framework.ExpectNoError(err)
+			framework.ExpectNoError(err, "failed to client.Get")
 
 			plStatusToUpdate := pl.DeepCopy()
 			plStatusToUpdate.Status.Conditions = append(plStatusToUpdate.Status.Conditions, flowcontrol.PriorityLevelConfigurationCondition{
@@ -704,28 +704,28 @@ var _ = SIGDescribe("API priority and fairness", func() {
 			plStatusUpdated, err = client.UpdateStatus(ctx, plStatusToUpdate, metav1.UpdateOptions{})
 			return err
 		})
-		framework.ExpectNoError(err, "failed to update status of prioritylevelconfiguration %q", plCreated.Name)
+		framework.ExpectNoError(err, "failed to client.UpdateStatus", plCreated.Name)
 		condition = apihelpers.GetPriorityLevelConfigurationConditionByType(plStatusUpdated, flowcontrol.PriorityLevelConfigurationConditionType("StatusUpdateFailed"))
 		gomega.Expect(condition).NotTo(gomega.BeNil())
 
 		ginkgo.By("deleting")
 		err = client.Delete(ctx, plCreated.Name, metav1.DeleteOptions{})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.Delete")
 		_, err = client.Get(ctx, plCreated.Name, metav1.GetOptions{})
 		if !apierrors.IsNotFound(err) {
 			framework.Failf("expected 404, got %#v", err)
 		}
 
 		list, err = client.List(ctx, metav1.ListOptions{LabelSelector: label})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.List")
 		gomega.Expect(list.Items).To(gomega.HaveLen(2), "filtered list should have 2 items")
 
 		ginkgo.By("deleting a collection")
 		err = client.DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: label})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.DeleteCollection")
 
 		list, err = client.List(ctx, metav1.ListOptions{LabelSelector: label})
-		framework.ExpectNoError(err)
+		framework.ExpectNoError(err, "failed to client.List")
 		gomega.Expect(list.Items).To(gomega.BeEmpty(), "filtered list should have 0 items")
 	})
 })
@@ -750,7 +750,7 @@ func createPriorityLevel(ctx context.Context, f *framework.Framework, priorityLe
 			},
 		},
 		metav1.CreateOptions{})
-	framework.ExpectNoError(err)
+	framework.ExpectNoError(err, "failed to f.ClientSet.FlowcontrolV1.PriorityLevelConfigurations.Create")
 	ginkgo.DeferCleanup(f.ClientSet.FlowcontrolV1().PriorityLevelConfigurations().Delete, priorityLevelName, metav1.DeleteOptions{})
 	return createdPriorityLevel
 }
@@ -828,7 +828,7 @@ func createFlowSchema(ctx context.Context, f *framework.Framework, flowSchemaNam
 			},
 		},
 		metav1.CreateOptions{})
-	framework.ExpectNoError(err)
+	framework.ExpectNoError(err, "failed to f.ClientSet.FlowcontrolV1.FlowSchemas.Create")
 	ginkgo.DeferCleanup(f.ClientSet.FlowcontrolV1().FlowSchemas().Delete, flowSchemaName, metav1.DeleteOptions{})
 	return createdFlowSchema
 }
@@ -859,7 +859,7 @@ func waitForSteadyState(ctx context.Context, f *framework.Framework, flowSchemaN
 			return false, err
 		}
 		return true, nil
-	}))
+	}), "failed to getPriorityLevelNominalConcurrency(ctx, f.ClientSet, prio...")
 }
 
 // makeRequests creates a request to the API server and returns the response.
@@ -869,13 +869,13 @@ func makeRequest(f *framework.Framework, username string) *http.Response {
 	config.RateLimiter = clientsideflowcontrol.NewFakeAlwaysRateLimiter()
 	config.Impersonate.Groups = []string{"system:authenticated"}
 	roundTripper, err := rest.TransportFor(config)
-	framework.ExpectNoError(err)
+	framework.ExpectNoError(err, "failed to rest.TransportFor")
 
 	req, err := http.NewRequest(http.MethodGet, f.ClientSet.CoreV1().RESTClient().Get().AbsPath("version").URL().String(), nil)
-	framework.ExpectNoError(err)
+	framework.ExpectNoError(err, "failed to http.NewRequest")
 
 	response, err := roundTripper.RoundTrip(req)
-	framework.ExpectNoError(err)
+	framework.ExpectNoError(err, "failed to roundTripper.RoundTrip")
 	return response
 }
 
