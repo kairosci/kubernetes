@@ -95,11 +95,8 @@ func (l *testListener) handle(obj interface{}) {
 
 func (l *testListener) ok() bool {
 	l.println("polling")
-	err := wait.PollImmediate(100*time.Millisecond, 2*time.Second, func() (bool, error) {
-		if l.satisfiedExpectations() {
-			return true, nil
-		}
-		return false, nil
+	err := wait.PollUntilContextTimeout(context.Background(), 100*time.Millisecond, 2*time.Second, true, func(ctx context.Context) (bool, error) {
+		return l.satisfiedExpectations(), nil
 	})
 	if err != nil {
 		return false
@@ -1012,19 +1009,9 @@ func TestAddOnStoppedSharedInformer(t *testing.T) {
 	defer wg.Wait()
 	close(stop)
 
-	err := wait.PollImmediate(100*time.Millisecond, 2*time.Second, func() (bool, error) {
-		if informer.IsStopped() {
-			return true, nil
-		}
-		return false, nil
-	})
+	assert.Eventually(t, informer.IsStopped, 2*time.Second, 100*time.Millisecond, "informer reports not to be stopped although stop channel closed")
 
-	if err != nil {
-		t.Errorf("informer reports not to be stopped although stop channel closed")
-		return
-	}
-
-	_, err = informer.AddEventHandlerWithResyncPeriod(listener, listener.resyncPeriod)
+	_, err := informer.AddEventHandlerWithResyncPeriod(listener, listener.resyncPeriod)
 	if err == nil {
 		t.Errorf("stopped informer did not reject add handler")
 		return

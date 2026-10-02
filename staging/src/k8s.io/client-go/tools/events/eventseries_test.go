@@ -25,6 +25,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/onsi/gomega"
+
 	v1 "k8s.io/api/core/v1"
 	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -207,25 +209,19 @@ func TestEventSeriesWithEventSinkImplRace(t *testing.T) {
 	recorder.Eventf(&v1.ObjectReference{}, nil, v1.EventTypeNormal, "reason", "action", "", "")
 	recorder.Eventf(&v1.ObjectReference{}, nil, v1.EventTypeNormal, "reason", "action", "", "")
 
-	err := wait.PollImmediate(100*time.Millisecond, 5*time.Second, func() (done bool, err error) {
-		events, err := kubeClient.EventsV1().Events(metav1.NamespaceDefault).List(context.TODO(), metav1.ListOptions{})
+	g := gomega.NewWithT(t)
+	g.Eventually(t.Context(), func(ctx context.Context) (int, error) {
+		events, err := kubeClient.EventsV1().Events(metav1.NamespaceDefault).List(ctx, metav1.ListOptions{})
 		if err != nil {
-			return false, err
+			return 0, err
 		}
 
-		if len(events.Items) != 1 {
-			return false, nil
+		if len(events.Items) == 1 && events.Items[0].Series != nil {
+			return 1, nil
 		}
 
-		if events.Items[0].Series == nil {
-			return false, nil
-		}
-
-		return true, nil
-	})
-	if err != nil {
-		t.Fatal("expected that 2 identical Eventf calls would result in the creation of an Event with a Serie")
-	}
+		return len(events.Items), nil
+	}).WithTimeout(5*time.Second).WithPolling(100*time.Millisecond).Should(gomega.Equal(1), "expected that 2 identical Eventf calls would result in the creation of an Event with a Series")
 }
 
 func validateEvent(messagePrefix string, expectedUpdate bool, actualEvent *eventsv1.Event, expectedEvent *eventsv1.Event, t *testing.T) {
