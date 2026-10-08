@@ -56,11 +56,28 @@ var (
 					{Choice: true, Weight: 25},
 				},
 			},
+			CachedObject: []ChoiceWeight[bool]{
+				{Choice: false, Weight: 75},
+				{Choice: true, Weight: 25},
+			},
+			ValidateDeletion: []ChoiceWeight[bool]{
+				{Choice: false, Weight: 75},
+				{Choice: true, Weight: 25},
+			},
 		},
 		Get: GetDistribution{
 			IgnoreNotFound: []ChoiceWeight[bool]{
 				{Choice: false, Weight: 50},
 				{Choice: true, Weight: 50},
+			},
+			ResourceVersion: []ChoiceWeight[RVType]{
+				{Choice: RVEmpty, Weight: 30},
+				{Choice: RVZero, Weight: 15},
+				{Choice: RVOne, Weight: 10},
+				{Choice: RVCached, Weight: 15},
+				{Choice: RVCurrent, Weight: 10},
+				{Choice: RVPast, Weight: 10},
+				{Choice: RVFuture, Weight: 10},
 			},
 		},
 		List: ListDistribution{
@@ -68,6 +85,18 @@ var (
 				{Choice: ScopeCluster, Weight: 50},
 				{Choice: ScopeNamespace, Weight: 25},
 				{Choice: ScopeObject, Weight: 25},
+			},
+			FieldSelector: []ChoiceWeight[FieldSelector]{
+				{Choice: FieldEverything, Weight: 25},
+				{Choice: FieldByName, Weight: 15},
+				{Choice: FieldByNamespace, Weight: 15},
+				{Choice: FieldByNode, Weight: 20},
+				{Choice: FieldByEmptyNode, Weight: 15},
+				{Choice: FieldCombined, Weight: 10},
+			},
+			LabelSelector: []ChoiceWeight[LabelSelector]{
+				{Choice: LabelEverything, Weight: 60},
+				{Choice: LabelByApp, Weight: 40},
 			},
 			ResourceVersion: []ChoiceWeight[RVType]{
 				{Choice: RVEmpty, Weight: 50},
@@ -115,9 +144,30 @@ var (
 	}
 
 	watchRequestDistribution = WatchDistribution{
+		Scope: []ChoiceWeight[KeyScope]{
+			{Choice: ScopeCluster, Weight: 40},
+			{Choice: ScopeNamespace, Weight: 30},
+			{Choice: ScopeObject, Weight: 30},
+		},
+		FieldSelector: []ChoiceWeight[FieldSelector]{
+			{Choice: FieldEverything, Weight: 25},
+			{Choice: FieldByName, Weight: 15},
+			{Choice: FieldByNamespace, Weight: 15},
+			{Choice: FieldByNode, Weight: 20},
+			{Choice: FieldByEmptyNode, Weight: 15},
+			{Choice: FieldCombined, Weight: 10},
+		},
+		LabelSelector: []ChoiceWeight[LabelSelector]{
+			{Choice: LabelEverything, Weight: 60},
+			{Choice: LabelByApp, Weight: 40},
+		},
 		SendInitialEvents: []ChoiceWeight[bool]{
 			{Choice: false, Weight: 70},
 			{Choice: true, Weight: 30},
+		},
+		AllowWatchBookmarks: []ChoiceWeight[bool]{
+			{Choice: false, Weight: 50},
+			{Choice: true, Weight: 50},
 		},
 		ResourceVersion: []ChoiceWeight[RVType]{
 			{Choice: RVEmpty, Weight: 15},
@@ -127,11 +177,19 @@ var (
 			{Choice: RVPast, Weight: 20},
 			{Choice: RVFuture, Weight: 20},
 		},
+		WatcherBehavior: []ChoiceWeight[WatcherBehavior]{
+			{Choice: WatcherFast, Weight: 40},
+			{Choice: WatcherSlow, Weight: 20},
+			{Choice: WatcherHiccup, Weight: 25},
+			{Choice: WatcherStalled, Weight: 15},
+		},
 	}
 
 	watchCfg = WatchConfig{
 		Concurrency:         4,
 		Duration:            500 * time.Millisecond,
+		SlowDelay:           2 * time.Millisecond,
+		HiccupDuration:      50 * time.Millisecond,
 		MaxEvents:           50,
 		RequestDistribution: watchRequestDistribution,
 	}
